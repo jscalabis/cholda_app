@@ -1,0 +1,68 @@
+'use client'
+
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Cell,
+} from 'recharts'
+
+export interface RegaDataPoint {
+  name: string
+  kwh: number
+}
+
+interface Props {
+  data: RegaDataPoint[]
+}
+
+const BAR_COLORS = ['#3d6b3d', '#4d8a4d', '#6aa86a', '#2d4a2d', '#8ec48e', '#243824']
+
+export function RegaBarChart({ data }: Props) {
+  if (!data.length || data.every((d) => d.kwh === 0)) {
+    return (
+      <div className="flex h-64 items-center justify-center text-cream-400 text-sm">
+        Sem dados de consumo para o período selecionado
+      </div>
+    )
+  }
+
+  return (
+    <ResponsiveContainer width="100%" height={320}>
+      <BarChart data={data} margin={{ top: 4, right: 8, left: 0, bottom: 64 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="#e8e4db" vertical={false} />
+        <XAxis
+          dataKey="name"
+          tick={{ fontSize: 11, fill: '#80766a' }}
+          angle={-35}
+          textAnchor="end"
+          interval={0}
+        />
+        <YAxis tick={{ fontSize: 11, fill: '#80766a' }} unit=" kWh" width={75} />
+        <Tooltip
+          formatter={(value) => [
+            typeof value === 'number' ? `${value.toFixed(1)} kWh` : String(value),
+            'Consumo',
+          ]}
+          labelFormatter={(label) => `${label}`}
+          contentStyle={{
+            fontSize: 12,
+            borderRadius: 10,
+            border: '1px solid #e8e4db',
+            background: '#faf9f6',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+          }}
+        />
+        <Bar dataKey="kwh" radius={[4, 4, 0, 0]} maxBarSize={60}>
+          {data.map((_, idx) => (
+            <Cell key={idx} fill={BAR_COLORS[idx % BAR_COLORS.length]} />
+          ))}
+        </Bar>
+      </BarChart>
+    </ResponsiveContainer>
+  )
+}

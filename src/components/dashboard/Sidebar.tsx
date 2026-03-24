@@ -2,14 +2,26 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, Settings, LogOut, Zap } from 'lucide-react'
+import {
+  LayoutDashboard,
+  Settings,
+  LogOut,
+  Zap,
+  Sun,
+  Droplets,
+  Receipt,
+  CalendarDays,
+} from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 
-const navItems = [
+const mainNavItems = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/settings', label: 'Configurações', icon: Settings },
+  { href: '/solar', label: 'Solar', icon: Sun },
+  { href: '/rega', label: 'Rega', icon: Droplets },
+  { href: '/financeiro', label: 'Financeiro', icon: Receipt },
+  { href: '/planeamento', label: 'Planeamento', icon: CalendarDays },
 ]
 
 export function Sidebar() {
@@ -22,37 +34,57 @@ export function Sidebar() {
     router.push('/login')
   }
 
+  const isActive = (href: string) =>
+    href === '/' ? pathname === '/' : pathname.startsWith(href)
+
   return (
-    <aside className="flex h-screen w-56 flex-col border-r border-slate-200 bg-white">
-      <div className="flex items-center gap-2 px-5 py-5 border-b border-slate-200">
-        <Zap className="h-5 w-5 text-amber-500" />
-        <span className="font-semibold text-slate-900 text-sm">Cholda Energy</span>
+    <aside className="flex h-screen w-56 flex-col bg-forest-900 flex-shrink-0">
+      {/* Logo */}
+      <div className="flex items-center gap-2.5 px-5 py-5 border-b border-forest-800">
+        <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-forest-500">
+          <Zap className="h-4 w-4 text-white" />
+        </div>
+        <span className="font-semibold text-sm text-forest-100">Cholda Energy</span>
       </div>
 
-      <nav className="flex-1 px-3 py-4 space-y-1">
-        {navItems.map(({ href, label, icon: Icon }) => (
+      {/* Main nav */}
+      <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
+        {mainNavItems.map(({ href, label, icon: Icon }) => (
           <Link
             key={href}
             href={href}
             className={cn(
-              'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-              pathname === href || (href !== '/' && pathname.startsWith(href))
-                ? 'bg-slate-100 text-slate-900'
-                : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+              'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-150',
+              isActive(href)
+                ? 'bg-forest-700 text-white'
+                : 'text-forest-300 hover:bg-forest-800 hover:text-forest-100'
             )}
           >
-            <Icon className="h-4 w-4" />
+            <Icon className="h-4 w-4 flex-shrink-0" />
             {label}
           </Link>
         ))}
       </nav>
 
-      <div className="px-3 pb-4">
+      {/* Bottom nav */}
+      <div className="px-3 pb-4 border-t border-forest-800 pt-3 space-y-0.5">
+        <Link
+          href="/settings"
+          className={cn(
+            'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-150',
+            isActive('/settings')
+              ? 'bg-forest-700 text-white'
+              : 'text-forest-300 hover:bg-forest-800 hover:text-forest-100'
+          )}
+        >
+          <Settings className="h-4 w-4 flex-shrink-0" />
+          Configurações
+        </Link>
         <button
           onClick={handleSignOut}
-          className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors"
+          className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-forest-300 hover:bg-forest-800 hover:text-forest-100 transition-all duration-150"
         >
-          <LogOut className="h-4 w-4" />
+          <LogOut className="h-4 w-4 flex-shrink-0" />
           Sair
         </button>
       </div>
