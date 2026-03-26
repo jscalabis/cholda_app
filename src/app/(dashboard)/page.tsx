@@ -138,16 +138,18 @@ export default async function DashboardPage(
       .select('plant_code, production_kwh')
       .gte('collected_at', chartStartISO)
       .lte('collected_at', chartEndISO),
-    // Latest spot price on or before today — use date-only string to avoid timestamp cast issues
+    // Latest spot price up to the current moment
     supabase
       .from('market_prices')
       .select('price_eur_mwh')
-      .lte('market_date', new Date().toISOString().split('T')[0])
+      .lte('market_date', now)
       .order('market_date', { ascending: false })
       .limit(1)
       .maybeSingle(),
     fetchCurrentWeather(),
   ])
+
+  if (currentPriceRes.error) console.error('[dashboard] market_prices:', currentPriceRes.error.message)
 
   const plants = plantsRes.data ?? []
   const totalParks = plants.length

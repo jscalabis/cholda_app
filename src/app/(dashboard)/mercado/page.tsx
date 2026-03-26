@@ -1,5 +1,5 @@
 import { PriceChart } from '@/components/charts/PriceChart'
-import { Zap, Euro, TrendingUp, AlertTriangle } from 'lucide-react'
+import { Zap, Euro, TrendingUp } from 'lucide-react'
 import { DateSelector } from '@/components/DateSelector'
 import { parseDateSelectorParams } from '@/lib/dateSelector'
 import { createClient } from '@/lib/supabase/server'
@@ -15,13 +15,20 @@ export default async function MercadoPage(
 
   const supabase = await createClient()
 
-  // Fetch verified ENTSO-E market pricing block limits mapped within boundary ranges
-  const { data: rawData } = await supabase
+  // Use date-only strings so the filter works for both `date` and `timestamptz` column types.
+  // For day: both bounds are the same date (e.g. "2026-03-26").
+  // For month/year: first and last calendar day of the period.
+  const startDateStr = startOfPeriod.toISOString().split('T')[0]
+  const endDateStr   = endOfPeriod.toISOString().split('T')[0]
+
+  const { data: rawData, error: priceError } = await supabase
     .from('market_prices')
     .select('market_date, price_eur_mwh')
-    .gte('market_date', startOfPeriod.toISOString())
-    .lte('market_date', endOfPeriod.toISOString())
+    .gte('market_date', startDateStr)
+    .lte('market_date', endDateStr)
     .order('market_date', { ascending: true })
+
+  if (priceError) console.error('[mercado] market_prices:', priceError.message)
 
   const pricesData = rawData || []
 

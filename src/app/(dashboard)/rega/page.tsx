@@ -45,6 +45,8 @@ export default async function RegaPage(
       .select('device_id, method, mm_per_unit, notes'),
   ])
 
+  if (paramsRes.error) console.error('[rega] pump_water_params:', paramsRes.error.message)
+
   const devices = devicesRes.data ?? []
 
   // Conversion params keyed by device_id (method/mm_per_unit may be null = not yet configured)
