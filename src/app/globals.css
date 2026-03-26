@@ -1,0 +1,55 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f4f2ed;
+  --foreground: #1c2a1c;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@theme {
+  /* Forest green palette */
+  --color-forest-950: #0f1a0f;
+  --color-forest-900: #1a2e1a;
+  --color-forest-800: #243824;
+  --color-forest-700: #2d4a2d;
+  --color-forest-600: #3d6b3d;
+  --color-forest-500: #4d8a4d;
+  --color-forest-400: #6aa86a;
+  --color-forest-300: #8ec48e;
+  --color-forest-200: #b8d9b8;
+  --color-forest-100: #dceadc;
+  --color-forest-50: #f0f7f0;
+
+  /* Warm neutral / cream palette */
+  --color-cream-50: #faf9f6;
+  --color-cream-100: #f4f2ed;
+  --color-cream-200: #e8e4db;
+  --color-cream-300: #d8d2c6;
+  --color-cream-400: #bfb8a8;
+  --color-cream-500: #a09688;
+  --color-cream-600: #80766a;
+  --color-cream-700: #5c5448;
+  --color-cream-800: #3e3830;
+  --color-cream-900: #2a2520;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Override browser blue in native date/week/month pickers */
+input[type="date"],
+input[type="week"],
+input[type="month"],
+input[type="number"] {
+  accent-color: var(--color-forest-600);
+  color-scheme: light;
+}
