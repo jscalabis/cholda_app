@@ -15,17 +15,15 @@ export default async function MercadoPage(
 
   const supabase = await createClient()
 
-  // Use date-only strings so the filter works for both `date` and `timestamptz` column types.
-  // For day: both bounds are the same date (e.g. "2026-03-26").
-  // For month/year: first and last calendar day of the period.
-  const startDateStr = startOfPeriod.toISOString().split('T')[0]
-  const endDateStr   = endOfPeriod.toISOString().split('T')[0]
+  // Use ISO strings to properly query the `timestamptz` column boundaries (00:00 to 23:59).
+  const startDateISO = startOfPeriod.toISOString()
+  const endDateISO   = endOfPeriod.toISOString()
 
   const { data: rawData, error: priceError } = await supabase
     .from('market_prices')
     .select('market_date, price_eur_mwh')
-    .gte('market_date', startDateStr)
-    .lte('market_date', endDateStr)
+    .gte('market_date', startDateISO)
+    .lte('market_date', endDateISO)
     .order('market_date', { ascending: true })
 
   if (priceError) console.error('[mercado] market_prices:', priceError.message)

@@ -149,7 +149,8 @@ export default async function DashboardPage(
     fetchCurrentWeather(),
   ])
 
-  if (currentPriceRes.error) console.error('[dashboard] market_prices:', currentPriceRes.error.message)
+  if (currentPriceRes.error) console.error('[dashboard] market_prices error:', currentPriceRes.error.message)
+  console.log('[dashboard] market_prices result:', currentPriceRes.data)
 
   const plants = plantsRes.data ?? []
   const totalParks = plants.length

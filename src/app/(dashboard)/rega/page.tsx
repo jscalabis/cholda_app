@@ -204,7 +204,10 @@ export default async function RegaPage(
                 </tr>
               ) : (
                 devices.map((device: { device_id: string; display_name: string | null }) => {
-                  const params = waterParams.get(device.device_id)
+                  const rawParams = waterParams.get(device.device_id)
+                  const hasValidParams = rawParams?.method && rawParams?.mm_per_unit != null
+                  const params = hasValidParams ? rawParams : null
+                  
                   const mm = mmChartData.find((d) => d.name === (device.display_name ?? device.device_id))?.mm ?? 0
                   return (
                     <tr key={device.device_id} className="hover:bg-cream-50 transition-colors">
@@ -237,7 +240,7 @@ export default async function RegaPage(
                         <PumpWaterParamsDialog
                           deviceId={device.device_id}
                           displayName={device.display_name ?? device.device_id}
-                          existing={params ?? null}
+                          existing={rawParams ?? null}
                         />
                       </td>
                     </tr>
