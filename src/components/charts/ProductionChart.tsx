@@ -41,10 +41,10 @@ export function ProductionChart({ data, labelFormatterPrefix = 'Hora', chartType
     )
   }
 
-  const tooltipFormatter = (value: unknown) => [
+  const tooltipFormatter = (value: any) => [
     typeof value === 'number' ? `${value.toFixed(1)} kWh` : String(value),
     'Produção',
-  ]
+  ] as [string, string]
   const labelFormatter = (label: unknown) => `${labelFormatterPrefix}: ${label}`
 
   if (chartType === 'bar') {

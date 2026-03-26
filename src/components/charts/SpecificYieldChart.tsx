@@ -92,7 +92,7 @@ export function SpecificYieldChart({ data }: Props) {
             return [
               `${numValue.toFixed(2)} kWh/kWp`,
               `Produção: ${d.production.toFixed(1)} kWh  |  Capacidade: ${d.capacity.toFixed(1)} kWp`,
-            ]
+            ] as [string, string]
           }}
           labelFormatter={(label) => `${label}`}
           contentStyle={{

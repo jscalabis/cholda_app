@@ -57,7 +57,7 @@ export function PriceChart({ data }: PriceChartProps) {
           />
           <Tooltip
             contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-            formatter={(value: number) => [`€ ${value.toFixed(2)}`, 'Preço Médio Diário']}
+            formatter={(value: any) => [`€ ${Number(value).toFixed(2)}`, 'Preço Médio Diário'] as [string, string]}
             labelStyle={{ color: '#64748b', marginBottom: '4px' }}
           />
           <Area

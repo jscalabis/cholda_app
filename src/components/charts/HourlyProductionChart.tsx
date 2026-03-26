@@ -52,10 +52,10 @@ export function HourlyProductionChart({ data }: Props) {
         />
         <YAxis tick={{ fontSize: 11, fill: '#80766a' }} unit=" kWh" width={70} />
         <Tooltip
-          formatter={(value) => [
+          formatter={(value: any) => [
             typeof value === 'number' ? `${value.toFixed(1)} kWh` : String(value),
             'Produção',
-          ]}
+          ] as [string, string]}
           labelFormatter={(label) => `Hora: ${label}`}
           contentStyle={{
             fontSize: 12,

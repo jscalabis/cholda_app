@@ -53,12 +53,12 @@ export function EnergyBarChart({ data }: Props) {
           width={70}
         />
         <Tooltip
-          formatter={(value, name) => [
+          formatter={(value: any, name: any) => [
             typeof value === 'number' ? `${value.toFixed(1)} kWh` : String(value),
             String(name) === 'production_kwh' ? 'Produção'
               : String(name) === 'consumption_kwh' ? 'Consumo'
               : 'Autoconsumo',
-          ]}
+          ] as [string, string]}
           labelFormatter={(label) => `Dia: ${label}`}
           contentStyle={{ fontSize: 12, borderRadius: 8 }}
         />
