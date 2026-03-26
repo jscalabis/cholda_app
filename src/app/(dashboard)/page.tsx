@@ -57,9 +57,6 @@ export default async function DashboardPage(
   let prevDate = ''
   let nextDate = ''
   let isLatest = false
-  let graphTitle = 'Rendimento Específico Diário'
-  let graphSubtitle = 'Rendimento normalizado no dia selecionado'
-
   if (mode === 'day') {
     dateValue = selectedDate.toISOString().split('T')[0]
     isLatest = dateValue === today.toISOString().split('T')[0]
@@ -73,15 +70,12 @@ export default async function DashboardPage(
     const n = new Date(startOfPeriod)
     n.setDate(n.getDate() + 1)
     nextDate = n.toISOString().split('T')[0]
-
-    graphTitle = 'Rendimento Específico Diário'
-    graphSubtitle = 'Rendimento normalizado no dia selecionado'
   } else if (mode === 'month') {
     const y = selectedDate.getFullYear()
     const m = selectedDate.getMonth()
     dateValue = `${y}-${(m+1).toString().padStart(2, '0')}`
     isLatest = (y === today.getFullYear() && m === today.getMonth())
-    
+
     startOfPeriod = new Date(y, m, 1)
     endOfPeriod = new Date(y, m + 1, 0, 23, 59, 59, 999)
 
@@ -90,9 +84,6 @@ export default async function DashboardPage(
 
     const n = new Date(y, m + 1, 1)
     nextDate = `${n.getFullYear()}-${(n.getMonth()+1).toString().padStart(2, '0')}`
-
-    graphTitle = 'Rendimento Específico Mensal'
-    graphSubtitle = 'Rendimento normalizado no mês selecionado'
   } else {
     // year
     const y = selectedDate.getFullYear()
@@ -104,9 +95,6 @@ export default async function DashboardPage(
 
     prevDate = (y - 1).toString()
     nextDate = (y + 1).toString()
-
-    graphTitle = 'Rendimento Específico Anual'
-    graphSubtitle = 'Rendimento normalizado no ano selecionado'
   }
 
   const chartStartISO = startOfPeriod.toISOString()
@@ -150,11 +138,11 @@ export default async function DashboardPage(
       .select('plant_code, production_kwh')
       .gte('collected_at', chartStartISO)
       .lte('collected_at', chartEndISO),
-    // Latest matching real-time energy spot price from exactly right now or most recent hourly block
+    // Latest spot price on or before today — use date-only string to avoid timestamp cast issues
     supabase
       .from('market_prices')
       .select('price_eur_mwh')
-      .lte('market_date', now)
+      .lte('market_date', new Date().toISOString().split('T')[0])
       .order('market_date', { ascending: false })
       .limit(1)
       .maybeSingle(),
@@ -218,14 +206,6 @@ export default async function DashboardPage(
 
   // Weather icon
   const WeatherIcon = weather ? weatherIcons[weather.icon] : Cloud
-
-  // Today's date label
-  const todayLabel = new Date().toLocaleDateString('pt-PT', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  })
 
   return (
     <div className="px-6 py-6 max-w-6xl mx-auto">
