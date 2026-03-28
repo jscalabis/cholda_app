@@ -43,8 +43,8 @@ export function Sidebar() {
     <aside className="hidden md:flex h-screen w-56 flex-col bg-forest-900 flex-shrink-0">
 
       {/* Logo */}
-      <div className="flex items-center gap-3 px-5 py-5 border-b border-forest-800">
-        <div className="flex items-center justify-center flex-shrink-0">
+      <Link href="/" className="flex items-center gap-3 px-5 py-5 border-b border-forest-800 hover:bg-forest-800/50 transition-colors group">
+        <div className="flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-110 duration-200">
           <Image src="/logo.png" alt="Quinta da Cholda" width={32} height={32} className="object-contain" />
         </div>
         <div className="flex flex-col">
@@ -53,7 +53,7 @@ export function Sidebar() {
             Gestão de Energia
           </span>
         </div>
-      </div>
+      </Link>
 
       {/* Main nav */}
       <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
