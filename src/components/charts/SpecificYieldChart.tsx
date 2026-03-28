@@ -11,6 +11,7 @@ import {
   Cell,
   ReferenceLine,
 } from 'recharts'
+import { fmtNum } from '@/lib/utils'
 
 export interface YieldDataPoint {
   name: string
@@ -90,8 +91,8 @@ export function SpecificYieldChart({ data }: Props) {
             const d = props.payload as YieldDataPoint
             const numValue = typeof value === 'number' ? value : 0
             return [
-              `${numValue.toFixed(2)} kWh/kWp`,
-              `Produção: ${d.production.toFixed(1)} kWh  |  Capacidade: ${d.capacity.toFixed(1)} kWp`,
+              `${fmtNum(numValue, 2)} kWh/kWp`,
+              `Produção: ${fmtNum(d.production, 1)} kWh  |  Capacidade: ${fmtNum(d.capacity, 1)} kWp`,
             ] as [string, string]
           }}
           labelFormatter={(label) => `${label}`}

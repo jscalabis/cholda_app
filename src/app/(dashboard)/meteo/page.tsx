@@ -1,4 +1,5 @@
 import { fetchAdvancedWeather } from '@/lib/weather'
+import { fmtNum } from '@/lib/utils'
 import {
   Sun,
   CloudSun,
@@ -57,7 +58,7 @@ export default async function MeteoPage() {
               <CurrentIcon className="w-10 h-10" />
             </div>
             <div>
-              <p className="text-6xl font-bold text-cream-900 tracking-tight">{current.temperature.toFixed(0)}°</p>
+              <p className="text-6xl font-bold text-cream-900 tracking-tight">{fmtNum(current.temperature, 0)}°</p>
               <p className="text-lg text-cream-600 font-medium mt-1 capitalize">{current.label}</p>
             </div>
           </div>
@@ -72,7 +73,7 @@ export default async function MeteoPage() {
             </div>
             <div>
               <p className="text-xs font-semibold text-cream-500 uppercase">Humidade</p>
-              <p className="text-xl font-bold text-cream-900">{current.humidity}%</p>
+              <p className="text-xl font-bold text-cream-900">{fmtNum(current.humidity, 0)}%</p>
             </div>
           </div>
           <div className="flex items-center gap-4">
@@ -81,7 +82,7 @@ export default async function MeteoPage() {
             </div>
             <div>
               <p className="text-xs font-semibold text-cream-500 uppercase">Vento</p>
-              <p className="text-xl font-bold text-cream-900">{current.windSpeed} <span className="text-sm text-cream-500">km/h</span></p>
+              <p className="text-xl font-bold text-cream-900">{fmtNum(current.windSpeed, 1)} <span className="text-sm text-cream-500">km/h</span></p>
             </div>
           </div>
         </div>
@@ -108,18 +109,18 @@ export default async function MeteoPage() {
               <div className="flex items-center justify-center gap-3 w-full border-t border-cream-50 pt-4">
                 <div className="text-center">
                   <p className="text-xs text-cream-400">Min</p>
-                  <p className="text-base font-bold text-cream-600">{day.temperatureMin.toFixed(0)}°</p>
+                  <p className="text-base font-bold text-cream-600">{fmtNum(day.temperatureMin, 0)}°</p>
                 </div>
                 <div className="text-center">
                   <p className="text-xs text-cream-400">Max</p>
-                  <p className="text-base font-bold text-cream-900">{day.temperatureMax.toFixed(0)}°</p>
+                  <p className="text-base font-bold text-cream-900">{fmtNum(day.temperatureMax, 0)}°</p>
                 </div>
               </div>
               
               {day.precipitationSum > 0 && (
                 <div className="mt-3 flex items-center gap-1.5 text-xs font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded w-full justify-center">
                   <Droplet className="w-3 h-3" />
-                  {day.precipitationSum} mm
+                  {fmtNum(day.precipitationSum, 1)} mm
                 </div>
               )}
             </div>

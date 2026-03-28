@@ -4,13 +4,13 @@ import { createClient } from '@/lib/supabase/server'
 import { DateSelector } from '@/components/DateSelector'
 import { SolarBarChart } from '@/components/charts/SolarBarChart'
 import { parseDateSelectorParams } from '@/lib/dateSelector'
+import { fmtNum } from '@/lib/utils'
 import type { FusionPlant } from '@/lib/types'
 
 export const dynamic = 'force-dynamic'
 
 function fmtKwh(kwh: number): string {
-  if (kwh >= 1000) return `${(kwh / 1000).toFixed(2)} MWh`
-  return `${kwh.toFixed(1)} kWh`
+  return `${fmtNum(kwh, 1)} kWh`
 }
 
 export default async function SolarPage(
@@ -65,7 +65,7 @@ export default async function SolarPage(
   const totalCapacity = plants.reduce((sum, p) => sum + p.capacity_kwp, 0)
 
   return (
-    <div className="px-6 py-6 max-w-6xl mx-auto space-y-6">
+    <div className="px-4 sm:px-6 py-4 sm:py-6 max-w-6xl mx-auto w-full space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
         <div className="flex items-center gap-3">
@@ -98,7 +98,7 @@ export default async function SolarPage(
         </div>
         <div className="bg-white rounded-xl border border-cream-200 p-5 shadow-sm">
           <p className="text-xs text-cream-500 uppercase tracking-wide font-semibold">Cap. Total Instalada</p>
-          <p className="text-2xl font-bold text-forest-700 mt-2">{totalCapacity.toFixed(0)} kWp</p>
+          <p className="text-2xl font-bold text-forest-700 mt-2">{fmtNum(totalCapacity, 0)} kWp</p>
         </div>
       </div>
 
@@ -148,7 +148,7 @@ export default async function SolarPage(
                 plants.map((plant) => (
                   <tr key={plant.plant_code} className="hover:bg-cream-50 transition-colors">
                     <td className="px-6 py-4 font-medium text-cream-900">{plant.plant_name}</td>
-                    <td className="px-6 py-4 text-cream-600">{plant.capacity_kwp} kWp</td>
+                    <td className="px-6 py-4 text-cream-600">{fmtNum(plant.capacity_kwp, 1)} kWp</td>
                     <td className="px-6 py-4 text-cream-600">{plant.plant_address}</td>
                     <td className="px-6 py-4 text-cream-600">
                       {plantGroupMap.get(plant.plant_code) ?? '—'}

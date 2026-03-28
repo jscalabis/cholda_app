@@ -1,6 +1,6 @@
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { formatKwh, formatEur } from '@/lib/utils'
+import { formatKwh, formatEur, fmtNum } from '@/lib/utils'
 import type { MonthlyEnergySummary } from '@/lib/types'
 
 interface Props {
@@ -49,7 +49,7 @@ export function ReconciliationPanel({ summary }: Props) {
                           : 'destructive'
                       }
                     >
-                      {invoice_delta_kwh > 0 ? '+' : ''}{invoice_delta_kwh.toFixed(1)}
+                      {invoice_delta_kwh > 0 ? '+' : ''}{fmtNum(invoice_delta_kwh, 1)}
                     </Badge>
                   )}
                 </div>

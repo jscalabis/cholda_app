@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { SourcesEditor } from '@/components/settings/SourcesEditor'
 import { PvModeEditor } from '@/components/settings/PvModeEditor'
 import { LocationDetailsForm } from '@/components/settings/LocationDetailsForm'
+import { fmtNum } from '@/lib/utils'
 import type { Location, LocationSource, PvModePeriod, FusionPlant, PumpDevice } from '@/lib/types'
 
 export const dynamic = 'force-dynamic'
@@ -66,7 +67,7 @@ export default async function LocationSettingsPage({
             locationId={id}
             sourceType="fusion_plant"
             category="production"
-            available={plants.map((p) => ({ id: p.plant_code, label: `${p.plant_name} (${p.capacity_kwp} kWp)` }))}
+            available={plants.map((p) => ({ id: p.plant_code, label: `${p.plant_name} (${fmtNum(p.capacity_kwp, 1)} kWp)` }))}
             current={sources.filter((s) => s.source_type === 'fusion_plant')}
           />
         </CardContent>

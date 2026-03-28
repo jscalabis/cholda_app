@@ -1,6 +1,8 @@
 'use client'
 
+import { useMemo } from 'react'
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts'
+import { fmtNum } from '@/lib/utils'
 import type { DeviceBreakdown } from '@/lib/types'
 
 const COLORS = [
@@ -39,7 +41,7 @@ export function DonutBreakdown({ data }: Props) {
         </Pie>
         <Tooltip
           formatter={(value, name) => [
-            typeof value === 'number' ? `${value.toFixed(1)} kWh` : String(value),
+            typeof value === 'number' ? `${fmtNum(value, 1)} kWh` : String(value),
             String(name),
           ]}
           contentStyle={{ fontSize: 12, borderRadius: 8 }}
@@ -47,7 +49,7 @@ export function DonutBreakdown({ data }: Props) {
         <Legend
           formatter={(value, entry) => {
             const item = data.find((d) => d.display_name === value)
-            return `${value} (${item?.percentage.toFixed(0)}%)`
+            return `${value} (${fmtNum(item?.percentage ?? 0, 0)}%)`
           }}
           wrapperStyle={{ fontSize: 11 }}
         />

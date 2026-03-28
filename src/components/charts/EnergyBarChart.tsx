@@ -11,6 +11,7 @@ import {
   ResponsiveContainer,
   Cell,
 } from 'recharts'
+import { fmtNum } from '@/lib/utils'
 
 interface DayBucket {
   date: string
@@ -54,7 +55,7 @@ export function EnergyBarChart({ data }: Props) {
         />
         <Tooltip
           formatter={(value: any, name: any) => [
-            typeof value === 'number' ? `${value.toFixed(1)} kWh` : String(value),
+            typeof value === 'number' ? `${fmtNum(value, 1)} kWh` : String(value),
             String(name) === 'production_kwh' ? 'Produção'
               : String(name) === 'consumption_kwh' ? 'Consumo'
               : 'Autoconsumo',

@@ -10,6 +10,7 @@ import {
   ResponsiveContainer,
   Cell,
 } from 'recharts'
+import { fmtNum } from '@/lib/utils'
 
 export interface WaterMmDataPoint {
   name: string
@@ -54,7 +55,7 @@ export function WaterMmChart({ data }: Props) {
         <YAxis tick={{ fontSize: 11, fill: '#80766a' }} unit=" mm" width={60} />
         <Tooltip
           formatter={(value: any) => [
-            typeof value === 'number' ? `${value.toFixed(1)} mm` : String(value),
+            typeof value === 'number' ? `${fmtNum(value, 1)} mm` : String(value),
             'Água aplicada',
           ] as [string, string]}
           contentStyle={{

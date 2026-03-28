@@ -5,17 +5,43 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export function formatKwh(value: number, decimals = 1): string {
-  if (value >= 1000) return `${(value / 1000).toFixed(decimals)} MWh`
-  return `${value.toFixed(decimals)} kWh`
+/** Format a number with European notation (dot=thousands, comma=decimal) */
+export function fmtNum(value: number | null | undefined, decimals = 1): string {
+  if (value === null || value === undefined || isNaN(Number(value))) return (0).toLocaleString('de-DE', {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  })
+  
+  return Number(value).toLocaleString('de-DE', {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  })
 }
 
-export function formatEur(value: number): string {
-  return new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' }).format(value)
+export function formatKwh(value: number | null | undefined, decimals = 1): string {
+  return `${fmtNum(value, decimals)} kWh`
+}
+
+export function formatEur(value: number | null | undefined, decimals = 2): string {
+  if (value === null || value === undefined || isNaN(Number(value))) {
+    return (0).toLocaleString('de-DE', {
+      style: 'currency',
+      currency: 'EUR',
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
+    })
+  }
+
+  return Number(value).toLocaleString('de-DE', {
+    style: 'currency',
+    currency: 'EUR',
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  })
 }
 
 export function formatPercent(value: number, decimals = 1): string {
-  return `${value.toFixed(decimals)}%`
+  return `${fmtNum(value, decimals)}%`
 }
 
 /** Returns 'YYYY-MM' string for a given Date */

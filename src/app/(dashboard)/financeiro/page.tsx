@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { InvoicesTable } from '@/components/financeiro/InvoicesTable'
 import type { UnifiedInvoice } from '@/components/financeiro/InvoicesTable'
 import { InvoiceForm } from '@/components/financeiro/InvoiceForm'
+import { fmtNum, formatEur as libFormatEur } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
 
@@ -48,16 +49,15 @@ export default async function FinanceiroPage() {
   const unaccountedInvoices = invoices.filter(i => !i.document_number || i.document_number.trim() === '').length
 
   function formatKwh(kwh: number) {
-    if (kwh >= 1000) return `${(kwh / 1000).toFixed(1)} MWh`
-    return `${kwh.toFixed(0)} kWh`
+    return `${fmtNum(kwh, 0)} kWh`
   }
 
   function formatEur(eur: number) {
-    return eur.toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' })
+    return libFormatEur(eur)
   }
 
   return (
-    <div className="px-6 py-6 max-w-6xl mx-auto space-y-6">
+    <div className="px-4 sm:px-6 py-4 sm:py-6 max-w-6xl mx-auto w-full space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3">
         <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-forest-100">
@@ -66,6 +66,10 @@ export default async function FinanceiroPage() {
         <div>
           <h1 className="text-xl font-bold text-cream-900">Financeiro</h1>
           <p className="text-xs text-cream-500 mt-0.5">Gestão e submissão de faturas</p>
+        </div>
+        
+        <div className="ml-auto">
+          <InvoiceForm tarifaPlants={tarifaPlants} locations={locations} />
         </div>
       </div>
 
@@ -99,11 +103,6 @@ export default async function FinanceiroPage() {
             </p>
           </div>
         </div>
-      </div>
-
-      {/* Actions */}
-      <div className="flex justify-end pt-2">
-        <InvoiceForm tarifaPlants={tarifaPlants} locations={locations} />
       </div>
 
       <InvoicesTable 

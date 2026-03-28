@@ -16,6 +16,7 @@ import { fetchCurrentWeather } from '@/lib/weather'
 import { SpecificYieldChart } from '@/components/charts/SpecificYieldChart'
 import type { YieldDataPoint } from '@/components/charts/SpecificYieldChart'
 import { DateSelector } from '@/components/DateSelector'
+import { formatEur, formatKwh, formatPercent, fmtNum } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
 
@@ -35,9 +36,8 @@ export default async function DashboardPage(
 ) {
   const supabase = await createClient()
 
-  // Time windows (Real-time KPIs)
-  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString()
   const now = new Date().toISOString()
+  const threeHoursAgo = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString()
   
   // Time windows (Specific Yield Chart)
   const searchParams = await props.searchParams
@@ -106,7 +106,7 @@ export default async function DashboardPage(
     pumpsRes,
     recentProductionRes,
     recentConsumptionRes,
-    todayReadingsRes,
+    chartProductionRes,
     currentPriceRes,
     weather,
   ] = await Promise.all([
@@ -118,26 +118,25 @@ export default async function DashboardPage(
       .order('plant_name'),
     // All active pumps
     supabase.from('pump_devices').select('device_id').eq('is_active', true),
-    // Last hour production (for KPI status) - direct query, not through location-filtered view
+    // Plants with production in the last 3 hours (for solar KPI)
     supabase
       .from('energy_readings')
-      .select('plant_code, production_kwh')
-      .gte('collected_at', oneHourAgo)
+      .select('plant_code')
+      .gte('collected_at', threeHoursAgo)
       .lte('collected_at', now)
       .gt('production_kwh', 0),
-    // Last hour consumption (for KPI status) - direct query, not through location-filtered view
+    // Pumps with consumption in the last 3 hours (for pump KPI)
     supabase
       .from('pump_brackets')
-      .select('device_id, kwh_consumed')
-      .gte('bracket_end', oneHourAgo)
+      .select('device_id')
+      .gte('bracket_end', threeHoursAgo)
       .lte('bracket_end', now)
       .gt('kwh_consumed', 0),
-    // Date's readings for specific yield chart
-    supabase
-      .from('energy_readings')
-      .select('plant_code, production_kwh')
-      .gte('collected_at', chartStartISO)
-      .lte('collected_at', chartEndISO),
+    // Per-plant production for selected period (for specific yield chart)
+    supabase.rpc('get_energy_readings_sum', {
+      start_date: chartStartISO,
+      end_date: chartEndISO,
+    }),
     // Latest spot price up to the current moment
     supabase
       .from('market_prices')
@@ -157,26 +156,17 @@ export default async function DashboardPage(
   const totalPumps = (pumpsRes.data ?? []).length
   const currentSpotPrice = currentPriceRes.data?.price_eur_mwh
 
-  // --- Real-time KPI: parks producing in last hour ---
-  const producingPlants = new Set<string>()
-  for (const row of recentProductionRes.data ?? []) {
-    producingPlants.add(row.plant_code)
-  }
-  const activeParks = producingPlants.size
+  // --- KPI: parks with production in the last 3 hours ---
+  const activeParks = new Set((recentProductionRes.data ?? []).map((r) => r.plant_code)).size
 
-  // --- Real-time KPI: pumps consuming in last hour ---
-  const consumingPumps = new Set<string>()
-  for (const row of recentConsumptionRes.data ?? []) {
-    consumingPumps.add(row.device_id)
-  }
-  const activePumps = consumingPumps.size
+  // --- KPI: pumps with consumption in the last 3 hours ---
+  const activePumps = new Set((recentConsumptionRes.data ?? []).map((r) => r.device_id)).size
 
   // --- Specific yield chart data ---
   // Sum selected period's production per plant
   const todayProductionByPlant = new Map<string, number>()
-  for (const row of todayReadingsRes.data ?? []) {
-    const prev = todayProductionByPlant.get(row.plant_code) ?? 0
-    todayProductionByPlant.set(row.plant_code, prev + (row.production_kwh ?? 0))
+  for (const row of chartProductionRes.data ?? []) {
+    todayProductionByPlant.set(row.plant_code, Number(row.total_kwh) || 0)
   }
 
   // Step 1: Calculate specific yield per park = production / individual capacity
@@ -211,9 +201,9 @@ export default async function DashboardPage(
   const WeatherIcon = weather ? weatherIcons[weather.icon] : Cloud
 
   return (
-    <div className="px-6 py-6 max-w-6xl mx-auto">
+    <div className="px-4 sm:px-6 py-4 sm:py-6 max-w-6xl mx-auto w-full space-y-6">
       {/* Status KPI row */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {/* Solar Parks */}
         <Link href="/solar" className="bg-white rounded-xl border border-cream-200 p-5 shadow-sm flex items-start gap-4 hover:border-forest-300 hover:shadow-md transition-all group">
           <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-amber-50 flex-shrink-0 group-hover:scale-110 transition-transform">
@@ -259,7 +249,7 @@ export default async function DashboardPage(
             <p className="text-xs font-semibold text-cream-500 uppercase tracking-wide group-hover:text-forest-600 transition-colors">Preço Atual</p>
             {currentSpotPrice !== undefined && currentSpotPrice !== null ? (
                <>
-                 <p className="text-2xl font-bold text-cream-900 mt-1">€ {currentSpotPrice.toFixed(2)}</p>
+                 <p className="text-2xl font-bold text-cream-900 mt-1">€ {fmtNum(currentSpotPrice, 2)}</p>
                  <p className="text-xs text-cream-500 mt-0.5">OMIE Tempo Real</p>
                </>
             ) : (
@@ -280,7 +270,7 @@ export default async function DashboardPage(
             <p className="text-xs font-semibold text-cream-500 uppercase tracking-wide group-hover:text-forest-600 transition-colors">Tempo Atual</p>
             {weather ? (
               <>
-                <p className="text-2xl font-bold text-cream-900 mt-1">{weather.temperature.toFixed(0)}°C</p>
+                <p className="text-2xl font-bold text-cream-900 mt-1">{fmtNum(weather.temperature, 0)}°C</p>
                 <p className="text-xs text-cream-500 mt-0.5 truncate">{weather.label}</p>
               </>
             ) : (
@@ -299,7 +289,7 @@ export default async function DashboardPage(
           <div>
             <h2 className="font-semibold text-cream-900">Rendimento Específico</h2>
             <p className="text-xs text-cream-500 mt-0.5">
-              Rendimento normalizado (1.0 = média da frota: {avgYield.toFixed(2)} kWh/kWp)
+              Rendimento normalizado (1.0 = média da frota: {fmtNum(avgYield, 2)} kWh/kWp)
             </p>
             <p className="text-xs text-cream-400 mt-2">
               {yieldData.filter((d) => d.production > 0).length} de {yieldData.length} parques com produção

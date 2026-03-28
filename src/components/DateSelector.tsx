@@ -110,7 +110,7 @@ export function DateSelector({ mode, dateValue, prevDate, nextDate, isLatest, ba
   return (
     <div className="flex items-center gap-4 bg-cream-50 p-1.5 rounded-lg border border-cream-200">
       {/* Mode buttons */}
-      <div className="hidden sm:flex items-center border-r border-cream-200 pr-2 mr-2">
+      <div className="flex items-center sm:border-r sm:border-cream-200 sm:pr-2 sm:mr-2 overflow-x-auto scrollbar-hide -mx-1 px-1">
         {MODES.map(({ key, label, href }, idx) => {
           const isActive = mode === key
           const isFirst = idx === 0
@@ -121,11 +121,11 @@ export function DateSelector({ mode, dateValue, prevDate, nextDate, isLatest, ba
               href={href}
               scroll={false}
               className={[
-                'px-3 py-1.5 text-sm font-medium border transition-colors',
-                isFirst  ? 'rounded-l' : 'border-l-0',
-                isLast   ? 'rounded-r border-r' : '',
+                'px-3 py-1.5 text-xs sm:text-sm font-medium border transition-colors whitespace-nowrap min-w-[60px] text-center',
+                isFirst  ? 'rounded-l-lg' : 'border-l-0',
+                isLast   ? 'rounded-r-lg border-r' : '',
                 isActive
-                  ? 'bg-forest-600 text-white border-forest-600 shadow-sm'
+                  ? 'bg-forest-600 text-white border-forest-600 shadow-sm z-10'
                   : 'bg-white text-cream-600 border-cream-200 hover:text-cream-900',
               ].join(' ')}
             >

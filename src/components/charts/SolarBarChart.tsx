@@ -10,6 +10,7 @@ import {
   ResponsiveContainer,
   Cell,
 } from 'recharts'
+import { fmtNum } from '@/lib/utils'
 
 export interface SolarDataPoint {
   name: string
@@ -57,7 +58,7 @@ export function SolarBarChart({ data }: Props) {
         <YAxis tick={{ fontSize: 11, fill: '#80766a' }} unit=" kWh" width={75} />
         <Tooltip
           formatter={(value) => [
-            typeof value === 'number' ? `${value.toFixed(1)} kWh` : String(value),
+            typeof value === 'number' ? `${fmtNum(value, 1)} kWh` : String(value),
             'Produção',
           ]}
           labelFormatter={(label) => `${label}`}

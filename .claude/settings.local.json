@@ -2,7 +2,9 @@
   "permissions": {
     "allow": [
       "Bash(sed \"s/.*\\\\.from\\([\\\\''''\"\"]//g\")",
-      "Bash(sed \"s/[\\\\''''\"\"].*//\")"
+      "Bash(sed \"s/[\\\\''''\"\"].*//\")",
+      "Bash(test -f \"C:\\\\Users\\\\joaoc\\\\OneDrive\\\\Web Dev\\\\cholda_app\\\\src\\\\app\\\\\\(dashboard\\)\\\\meteo\\\\page.tsx\")",
+      "Bash(npx tsc:*)"
     ]
   }
 }

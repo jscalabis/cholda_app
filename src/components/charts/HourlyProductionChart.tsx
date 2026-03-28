@@ -10,6 +10,7 @@ import {
   ResponsiveContainer,
   Cell,
 } from 'recharts'
+import { fmtNum } from '@/lib/utils'
 
 export interface HourlyDataPoint {
   label: string
@@ -53,7 +54,7 @@ export function HourlyProductionChart({ data }: Props) {
         <YAxis tick={{ fontSize: 11, fill: '#80766a' }} unit=" kWh" width={70} />
         <Tooltip
           formatter={(value: any) => [
-            typeof value === 'number' ? `${value.toFixed(1)} kWh` : String(value),
+            typeof value === 'number' ? `${fmtNum(value, 1)} kWh` : String(value),
             'Produção',
           ] as [string, string]}
           labelFormatter={(label) => `Hora: ${label}`}

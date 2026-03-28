@@ -11,19 +11,15 @@ export const dynamic = 'force-dynamic'
 export async function POST() {
   const supabase = await createClient()
 
-  // Discover all unique device_ids from raw data tables
-  const [bracketsRes, readingsRes, existingRes] = await Promise.all([
+  // Discover all unique device_ids from pump_brackets (canonical source)
+  const [bracketsRes, existingRes] = await Promise.all([
     supabase.from('pump_brackets').select('device_id'),
-    supabase.from('pump_readings').select('device_id'),
     supabase.from('pump_devices').select('device_id'),
   ])
 
   // Collect all unique device_ids from raw data
   const rawDeviceIds = new Set<string>()
   for (const row of bracketsRes.data ?? []) {
-    if (row.device_id) rawDeviceIds.add(row.device_id)
-  }
-  for (const row of readingsRes.data ?? []) {
     if (row.device_id) rawDeviceIds.add(row.device_id)
   }
 

@@ -1,4 +1,6 @@
+import Link from 'next/link'
 import { Droplets } from 'lucide-react'
+import { fmtNum } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/server'
 import { DateSelector } from '@/components/DateSelector'
 import { RegaBarChart } from '@/components/charts/RegaBarChart'
@@ -9,16 +11,15 @@ import { parseDateSelectorParams } from '@/lib/dateSelector'
 export const dynamic = 'force-dynamic'
 
 function fmtKwh(kwh: number): string {
-  if (kwh >= 1000) return `${(kwh / 1000).toFixed(2)} MWh`
-  return `${kwh.toFixed(1)} kWh`
+  return `${fmtNum(kwh, 1)} kWh`
 }
 
 function fmtMm(mm: number): string {
-  return `${mm.toFixed(1)} mm`
+  return `${fmtNum(mm, 1)} mm`
 }
 
 function fmtHours(minutes: number): string {
-  return `${(minutes / 60).toFixed(1)} h`
+  return `${fmtNum(minutes / 60, 1)} h`
 }
 
 export default async function RegaPage(
@@ -97,7 +98,7 @@ export default async function RegaPage(
   const hasMmData   = mmChartData.some((d) => d.mm > 0)
 
   return (
-    <div className="px-6 py-6 max-w-6xl mx-auto space-y-6">
+    <div className="px-4 sm:px-6 py-4 sm:py-6 max-w-6xl mx-auto w-full space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
         <div className="flex items-center gap-3">
@@ -193,12 +194,13 @@ export default async function RegaPage(
                   Método
                 </th>
                 <th className="px-6 py-3" />
+                <th className="px-6 py-3" />
               </tr>
             </thead>
             <tbody className="divide-y divide-cream-50">
               {devices.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-cream-400 text-sm">
+                  <td colSpan={8} className="px-6 py-12 text-center text-cream-400 text-sm">
                     Nenhuma bomba de rega configurada.
                   </td>
                 </tr>
@@ -229,7 +231,7 @@ export default async function RegaPage(
                       <td className="px-6 py-4 text-cream-500 text-xs">
                         {params ? (
                           <span className="inline-flex items-center gap-1">
-                            <span className="font-medium">{params.mm_per_unit} mm</span>
+                            <span className="font-medium">{fmtNum(params.mm_per_unit ?? 0, 2)} mm</span>
                             <span className="text-cream-400">/{params.method === 'kwh' ? 'kWh' : 'h'}</span>
                           </span>
                         ) : (
@@ -242,6 +244,14 @@ export default async function RegaPage(
                           displayName={device.display_name ?? device.device_id}
                           existing={rawParams ?? null}
                         />
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <Link
+                          href={`/rega/${encodeURIComponent(device.device_id)}`}
+                          className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-forest-100 text-forest-700 text-xs font-bold hover:bg-forest-200 transition-colors"
+                        >
+                          +
+                        </Link>
                       </td>
                     </tr>
                   )

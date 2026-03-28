@@ -3,7 +3,7 @@
 import {
   LineChart,
   Line,
-  BarChart,
+  ComposedChart,
   Bar,
   Cell,
   XAxis,
@@ -12,10 +12,12 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts'
+import { fmtNum } from '@/lib/utils'
 
 export interface HourlyDataPoint {
   label: string
   kwh: number | null
+  avgKwh?: number | null
 }
 
 interface Props {
@@ -41,10 +43,11 @@ export function ProductionChart({ data, labelFormatterPrefix = 'Hora', chartType
     )
   }
 
-  const tooltipFormatter = (value: any) => [
-    typeof value === 'number' ? `${value.toFixed(1)} kWh` : String(value),
-    'Produção',
-  ] as [string, string]
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const tooltipFormatter = (value: any, name: any): [string, string] => [
+    typeof value === 'number' ? `${fmtNum(value, 1)} kWh` : String(value),
+    name === 'avgKwh' ? 'Méd. histórica' : 'Produção',
+  ]
   const labelFormatter = (label: unknown) => `${labelFormatterPrefix}: ${label}`
 
   if (chartType === 'bar') {
@@ -60,10 +63,15 @@ export function ProductionChart({ data, labelFormatterPrefix = 'Hora', chartType
     }
 
     let nonNullIndex = 0
+    const hasAvg = data.some((d) => d.avgKwh != null)
 
     return (
       <ResponsiveContainer width="100%" height={320}>
-        <BarChart data={data} margin={{ top: 4, right: 8, left: 0, bottom: 20 }}>
+        <ComposedChart
+          data={data}
+          margin={{ top: 4, right: 8, left: 0, bottom: 20 }}
+          barGap="-100%"
+        >
           <CartesianGrid strokeDasharray="3 3" stroke="#e8e4db" vertical={false} />
           <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#80766a' }} interval="preserveStartEnd" />
           <YAxis tick={{ fontSize: 11, fill: '#80766a' }} unit=" kWh" width={70} />
@@ -75,7 +83,34 @@ export function ProductionChart({ data, labelFormatterPrefix = 'Hora', chartType
               return <Cell key={idx} fill={fill} opacity={d.kwh === null ? 0 : 1} />
             })}
           </Bar>
-        </BarChart>
+          {hasAvg && (
+            <Bar
+              dataKey="avgKwh"
+              isAnimationActive={false}
+              shape={(props: any) => {
+                const { x, y, width, payload } = props
+                if (y === undefined || y === null || !payload || payload.avgKwh === null) return <path d="" />
+                
+                // Calculate center and width precisely
+                const centerX = x + width / 2
+                const barWidth = Math.min(width, 40) // Match maxBarSize={40} of the primary bar
+                const targetWidth = barWidth * 0.8
+                
+                return (
+                  <line
+                    x1={centerX - targetWidth / 2}
+                    x2={centerX + targetWidth / 2}
+                    y1={y}
+                    y2={y}
+                    stroke="#d97706"
+                    strokeWidth={1.5}
+                    strokeLinecap="round"
+                  />
+                )
+              }}
+            />
+          )}
+        </ComposedChart>
       </ResponsiveContainer>
     )
   }

@@ -9,7 +9,7 @@ import { EnergyBarChart } from '@/components/charts/EnergyBarChart'
 import { DonutBreakdown } from '@/components/charts/DonutBreakdown'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { formatKwh, formatPercent, toMonthKey, monthRange } from '@/lib/utils'
+import { formatKwh, formatPercent, toMonthKey, monthRange, fmtNum } from '@/lib/utils'
 import type { Location, LocationSource, ProductionHourlyRow, ConsumptionHourlyRow, PvModePeriod, GridInvoice } from '@/lib/types'
 
 export const dynamic = 'force-dynamic'
@@ -189,8 +189,8 @@ export default async function LocationDetailPage({
                 {deviceBreakdown.map((d) => (
                   <tr key={d.device_id} className="border-b border-slate-50">
                     <td className="py-2 text-slate-900">{d.display_name}</td>
-                    <td className="py-2 text-right text-slate-700">{d.total_kwh.toFixed(1)}</td>
-                    <td className="py-2 text-right text-slate-500">{d.percentage.toFixed(0)}%</td>
+                    <td className="py-2 text-right text-slate-700">{fmtNum(d.total_kwh, 1)}</td>
+                    <td className="py-2 text-right text-slate-500">{fmtNum(d.percentage, 0)}%</td>
                   </tr>
                 ))}
               </tbody>

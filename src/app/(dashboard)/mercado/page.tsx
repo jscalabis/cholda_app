@@ -3,6 +3,7 @@ import { Zap, Euro, TrendingUp } from 'lucide-react'
 import { DateSelector } from '@/components/DateSelector'
 import { parseDateSelectorParams } from '@/lib/dateSelector'
 import { createClient } from '@/lib/supabase/server'
+import { fmtNum } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
 
@@ -94,7 +95,7 @@ export default async function MercadoPage(
   }
 
   return (
-    <div className="px-6 py-6 max-w-6xl mx-auto">
+    <div className="px-4 sm:px-6 py-4 sm:py-6 max-w-6xl mx-auto w-full space-y-6">
       <h1 className="text-2xl font-bold text-cream-900 mb-8 flex items-center gap-3">
         <Zap className="w-6 h-6 text-forest-600" /> Preço da Energia na Rede
       </h1>
@@ -107,13 +108,13 @@ export default async function MercadoPage(
             <Euro className="w-5 h-5 text-cream-400" />
           </div>
           <p className="text-3xl font-bold text-cream-900">
-            {chartData.length > 0 ? `€ ${displayPrice.toFixed(2)}` : '—'}
+            {chartData.length > 0 ? `€ ${fmtNum(displayPrice, 2)}` : '—'}
           </p>
           <div className="flex items-center mt-3 text-sm">
             {chartData.length > 0 ? (
               <>
                 <span className={`font-medium px-2 py-0.5 rounded-full mr-2 ${periodVar > 0 ? 'bg-red-50 text-red-600' : 'bg-forest-50 text-forest-600'}`}>
-                  {periodVar > 0 ? '+' : ''}{periodVar.toFixed(1)}%
+                  {periodVar > 0 ? '+' : ''}{fmtNum(periodVar, 1)}%
                 </span>
                 <span className="text-cream-400">vs. início do período</span>
               </>
@@ -129,9 +130,9 @@ export default async function MercadoPage(
             <TrendingUp className="w-5 h-5 text-cream-400" />
           </div>
           <p className="text-3xl font-bold text-cream-900">
-            {chartData.length > 0 ? `€ ${earliestPrice.toFixed(2)} ` : '—'}
+            {chartData.length > 0 ? `€ ${fmtNum(earliestPrice, 2)} ` : '—'}
             {chartData.length > 0 && <span className="text-lg text-cream-400 font-medium">→</span>}
-            {chartData.length > 0 && ` € ${displayPrice.toFixed(2)}`}
+            {chartData.length > 0 && ` € ${fmtNum(displayPrice, 2)}`}
           </p>
           <div className="flex items-center mt-3 text-sm">
              <span className="text-cream-400">{chartData.length} registos agregados</span>

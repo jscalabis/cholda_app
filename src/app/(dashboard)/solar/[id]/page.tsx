@@ -5,16 +5,16 @@ import { ProductionChart } from '@/components/charts/ProductionChart'
 import { DateSelector } from '@/components/DateSelector'
 import { parseDateSelectorParams } from '@/lib/dateSelector'
 import { notFound } from 'next/navigation'
+import { fmtNum, formatEur } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
 
 function fmtKwh(kwh: number): string {
-  if (kwh >= 1000) return `${(kwh / 1000).toFixed(2)} MWh`
-  return `${kwh.toFixed(1)} kWh`
+  return `${fmtNum(kwh, 1)} kWh`
 }
 
 function fmtCurrency(val: number): string {
-  return new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' }).format(val)
+  return formatEur(val)
 }
 
 export default async function ParkDetailsPage({
@@ -32,8 +32,6 @@ export default async function ParkDetailsPage({
   
   const plantCode = decodeURIComponent(resolvedParams.id)
 
-  const today = new Date()
-
   const { mode, dateValue, startOfPeriod, endOfPeriod, prevDate, nextDate, isLatest, selectedDate } =
     parseDateSelectorParams(resolvedSearchParams.mode, resolvedSearchParams.date)
 
@@ -48,40 +46,100 @@ export default async function ParkDetailsPage({
   const labelPrefix   = mode === 'day' ? 'Hora' : mode === 'year' ? 'Mês' : 'Dia'
   const kpiStringPrefix = mode === 'day' ? 'Hoje' : mode === 'week' ? 'Semana' : mode === 'month' ? 'Mês' : 'Ano'
 
-  // Month periods for comparison (independent of mode, KPI always compares month to prev month)
-  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1)
-  const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0, 23, 59, 59, 999)
-  const prevMonthStart = new Date(today.getFullYear(), today.getMonth() - 1, 1)
-  const prevMonthEnd = new Date(today.getFullYear(), today.getMonth(), 0, 23, 59, 59, 999)
-
   const tableDateParams = parseDateSelectorParams(resolvedSearchParams.table_mode, resolvedSearchParams.table_date, 'year')
 
-  // Fetch data
-  const [
-    plantRes,
-    detailsRes,
-    periodProdRes,
-    monthProdRes,
-    prevMonthProdRes,
-    tableProdRes,
-    tableInvoicesRes
-  ] = await Promise.all([
-    supabase.from('fusion_plants').select('*').eq('plant_code', plantCode).single(),
-    supabase.from('solar_park_details').select('*').eq('plant_code', plantCode).maybeSingle(),
-    supabase.from('energy_readings').select('collected_at, production_kwh').eq('plant_code', plantCode).gte('collected_at', startOfPeriod.toISOString()).lte('collected_at', endOfPeriod.toISOString()),
-    supabase.from('energy_readings').select('production_kwh').eq('plant_code', plantCode).gte('collected_at', monthStart.toISOString()).lte('collected_at', monthEnd.toISOString()),
-    supabase.from('energy_readings').select('production_kwh').eq('plant_code', plantCode).gte('collected_at', prevMonthStart.toISOString()).lte('collected_at', prevMonthEnd.toISOString()),
-    supabase.rpc('get_energy_readings_sum', {
+  // Historical same-period ranges for comparison KPI (up to 5 previous years)
+  // If the current period is still in progress (isLatest), cap historical end dates
+  // at the same elapsed point so we compare like-for-like (e.g. March 1–28 vs March 1–28).
+  const now = new Date()
+  const selectedYear = selectedDate.getFullYear()
+  // For per-bar chart averages we only need month/year modes, and 3 years is sufficient
+  const numBarAvgYears = (mode === 'month' || mode === 'year') ? 3 : 0
+
+  const historicalRanges: Array<{ start: string; end: string }> = []
+  for (let y = 1; y <= 5; y++) {
+    if (mode === 'day') {
+      // Previous years' same day is always a complete day — no capping needed
+      historicalRanges.push({
+        start: new Date(selectedYear - y, selectedDate.getMonth(), selectedDate.getDate(), 0, 0, 0).toISOString(),
+        end:   new Date(selectedYear - y, selectedDate.getMonth(), selectedDate.getDate(), 23, 59, 59, 999).toISOString(),
+      })
+    } else if (mode === 'week') {
+      const offset = y * 364 * 24 * 60 * 60 * 1000
+      const hStart = new Date(startOfPeriod.getTime() - offset)
+      const hEndFull = new Date(endOfPeriod.getTime() - offset)
+      // Cap at same elapsed point within the week
+      const hEnd = isLatest
+        ? new Date(Math.min(hStart.getTime() + (now.getTime() - startOfPeriod.getTime()), hEndFull.getTime()))
+        : hEndFull
+      historicalRanges.push({ start: hStart.toISOString(), end: hEnd.toISOString() })
+    } else if (mode === 'month') {
+      // Cap at same day-of-month as today when viewing the current month
+      const capDay = isLatest ? now.getDate() : new Date(selectedYear - y, selectedDate.getMonth() + 1, 0).getDate()
+      historicalRanges.push({
+        start: new Date(selectedYear - y, selectedDate.getMonth(), 1).toISOString(),
+        end:   new Date(selectedYear - y, selectedDate.getMonth(), capDay, 23, 59, 59, 999).toISOString(),
+      })
+    } else {
+      // year — cap at same month+day as today when viewing the current year
+      const capMonth = isLatest ? now.getMonth() : 11
+      const capDay   = isLatest ? now.getDate()  : 31
+      historicalRanges.push({
+        start: new Date(selectedYear - y, 0, 1).toISOString(),
+        end:   new Date(selectedYear - y, capMonth, capDay, 23, 59, 59, 999).toISOString(),
+      })
+    }
+  }
+
+  // Fetch all data in parallel — historical comparison queries are spread at the end
+  // barAvg queries: raw energy_readings per historical year for per-bar chart averages (month/year modes only)
+  const barAvgRanges = historicalRanges.slice(0, numBarAvgYears)
+
+  const results = await Promise.all([
+    /* 0 */ supabase.from('fusion_plants').select('*').eq('plant_code', plantCode).single(),
+    /* 1 */ supabase.from('solar_park_details').select('*').eq('plant_code', plantCode).maybeSingle(),
+    /* 2 */ supabase
+      .from('energy_readings')
+      .select('collected_at, production_kwh')
+      .eq('plant_code', plantCode)
+      .gte('collected_at', startOfPeriod.toISOString())
+      .lte('collected_at', endOfPeriod.toISOString()),
+    /* 3 */ supabase.rpc('get_energy_readings_sum', {
       start_date: tableDateParams.startOfPeriod.toISOString(),
-      end_date: tableDateParams.endOfPeriod.toISOString()
+      end_date:   tableDateParams.endOfPeriod.toISOString(),
     }).eq('plant_code', plantCode).maybeSingle(),
-    supabase.from('invoices')
+    /* 4 */ supabase.from('invoices')
       .select('*')
       .eq('plant_code', plantCode)
       .eq('invoice_type', 'production')
       .gte('period_start', tableDateParams.startOfPeriod.toISOString())
-      .lte('period_end', tableDateParams.endOfPeriod.toISOString())
+      .lte('period_end', tableDateParams.endOfPeriod.toISOString()),
+    /* 5 */ supabase.from('invoices')
+      .select('kwh_value, total_amount')
+      .eq('plant_code', plantCode)
+      .eq('invoice_type', 'production'),
+    // 6..10: Historical same-period sums for KPI comparison
+    ...historicalRanges.map(r =>
+      supabase.rpc('get_energy_readings_sum', {
+        start_date: r.start,
+        end_date:   r.end,
+      }).eq('plant_code', plantCode).maybeSingle()
+    ),
+    // 11..13 (or empty): Raw energy_readings for per-bar chart averages
+    ...barAvgRanges.map(r =>
+      supabase
+        .from('energy_readings')
+        .select('collected_at, production_kwh')
+        .eq('plant_code', plantCode)
+        .gte('collected_at', r.start)
+        .lte('collected_at', r.end)
+    ),
   ])
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [plantRes, detailsRes, periodProdRes, tableProdRes, tableInvoicesRes, allInvoicesKpiRes] = results as any[]
+  const historicalProdResults: any[] = results.slice(6, 6 + historicalRanges.length)
+  const barAvgRawResults: any[] = results.slice(6 + historicalRanges.length)
 
   if (!plantRes.data) {
     notFound()
@@ -92,28 +150,76 @@ export default async function ParkDetailsPage({
   const tariffPrice = details.tariff_price_kwh ?? 0.05
 
   // KPI calculations
-  const periodProd = (periodProdRes.data ?? []).reduce((sum, r) => sum + (r.production_kwh ?? 0), 0)
+  const periodProd = (periodProdRes.data ?? []).reduce((sum: number, r: any) => sum + (r.production_kwh ?? 0), 0)
   const periodSales = periodProd * tariffPrice
 
-  const monthProd = (monthProdRes.data ?? []).reduce((sum, r) => sum + (r.production_kwh ?? 0), 0)
-  const monthSales = monthProd * tariffPrice
-  
-  const prevMonthProd = (prevMonthProdRes.data ?? []).reduce((sum, r) => sum + (r.production_kwh ?? 0), 0)
-  const prevMonthSales = prevMonthProd * tariffPrice
+  // Historical same-period average (exclude years with no data)
+  const historicalValues = historicalProdResults
+    .map(res => res.data ? ((res.data as any).total_kwh as number || 0) : 0)
+    .filter(v => v > 0)
+  const comparisonProd = historicalValues.length > 0
+    ? historicalValues.reduce((s, v) => s + v, 0) / historicalValues.length
+    : null
+  const comparisonSales = comparisonProd !== null ? comparisonProd * tariffPrice : null
+  const comparisonLabel = mode === 'day' ? 'Méd. mesmo dia anos ant.'
+    : mode === 'week'  ? 'Méd. mesma semana anos ant.'
+    : mode === 'month' ? 'Méd. mesmo mês anos ant.'
+    : 'Méd. anos anteriores'
+  const prodDiffPct = comparisonProd && comparisonProd > 0
+    ? ((periodProd - comparisonProd) / comparisonProd) * 100
+    : null
+  const salesDiffPct = comparisonSales && comparisonSales > 0
+    ? ((periodSales - comparisonSales) / comparisonSales) * 100
+    : null
 
-  const salesDiff = monthSales - prevMonthSales
-  const salesDiffPct = prevMonthSales > 0 ? (salesDiff / prevMonthSales) * 100 : 0
+  // Per-bar historical averages for chart overlay (month = per day-of-month, year = per calendar month)
+  const avgByBar = new Map<string, number>()
+  if (mode === 'month' && barAvgRawResults.length > 0) {
+    // Group raw rows by (yearIndex, day-of-month label), then average across years
+    const yearDayTotals: Map<string, number>[] = barAvgRawResults.map(res => {
+      const m = new Map<string, number>()
+      for (const row of res.data ?? []) {
+        const label = new Date(row.collected_at).getUTCDate().toString().padStart(2, '0')
+        m.set(label, (m.get(label) ?? 0) + (row.production_kwh ?? 0))
+      }
+      return m
+    })
+    const allDayLabels = new Set(yearDayTotals.flatMap(m => [...m.keys()]))
+    for (const label of allDayLabels) {
+      const vals = yearDayTotals.map(m => m.get(label) ?? 0).filter(v => v > 0)
+      if (vals.length > 0) avgByBar.set(label, vals.reduce((a, b) => a + b, 0) / vals.length)
+    }
+  } else if (mode === 'year' && barAvgRawResults.length > 0) {
+    const MONTHS = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
+    const yearMonthTotals: Map<string, number>[] = barAvgRawResults.map(res => {
+      const m = new Map<string, number>()
+      for (const row of res.data ?? []) {
+        const label = MONTHS[new Date(row.collected_at).getUTCMonth()]
+        m.set(label, (m.get(label) ?? 0) + (row.production_kwh ?? 0))
+      }
+      return m
+    })
+    const allMonthLabels = new Set(yearMonthTotals.flatMap(m => [...m.keys()]))
+    for (const label of allMonthLabels) {
+      const vals = yearMonthTotals.map(m => m.get(label) ?? 0).filter(v => v > 0)
+      if (vals.length > 0) avgByBar.set(label, vals.reduce((a, b) => a + b, 0) / vals.length)
+    }
+  }
+
+  // All-time invoices KPI
+  const allInvKwh = (allInvoicesKpiRes.data ?? []).reduce((s: number, r: any) => s + (r.kwh_value || 0), 0)
+  const allInvEur = (allInvoicesKpiRes.data ?? []).reduce((s: number, r: any) => s + (r.total_amount || 0), 0)
 
   // Details Table 1: Production & Invoices logic
   const tableProd = tableProdRes.data ? ((tableProdRes.data as any).total_kwh || 0) : 0
   const tableSales = tableProd * tariffPrice
-  const tableInvKwh = (tableInvoicesRes.data || []).reduce((sum, r) => sum + (r.kwh_value || 0), 0)
-  const tableInvEur = (tableInvoicesRes.data || []).reduce((sum, r) => sum + (r.total_amount || 0), 0)
+  const tableInvKwh = (tableInvoicesRes.data || []).reduce((sum: number, r: any) => sum + (r.kwh_value || 0), 0)
+  const tableInvEur = (tableInvoicesRes.data || []).reduce((sum: number, r: any) => sum + (r.total_amount || 0), 0)
   const tableMaint = details.maintenance_cost_total || 0
 
   // Details Table 1: Invoice Line Items comparisons
   const invoiceList = tableInvoicesRes.data || []
-  const invoiceComparisons = await Promise.all(invoiceList.map(async (inv) => {
+  const invoiceComparisons = await Promise.all(invoiceList.map(async (inv: any) => {
     // get our readings for the exact invoice period
     const startIso = new Date(inv.period_start).toISOString()
     
@@ -142,13 +248,11 @@ export default async function ParkDetailsPage({
   // Graph groupings based on mode
   const chartDataMap = new Map<string, number | null>()
 
-  const now = new Date()
   const DAY_LABELS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom']
 
   if (mode === 'day') {
     // Pre-fill all 24 hours with null so X axis always shows full day
     for (let i = 0; i < 24; i++) chartDataMap.set(i.toString().padStart(2, '0') + ':00', null)
-    // Accumulate real readings (initialise to 0 on first hit, then add)
     for (const row of periodProdRes.data ?? []) {
       const d = new Date(row.collected_at)
       const label = d.getUTCHours().toString().padStart(2, '0') + ':00'
@@ -203,13 +307,17 @@ export default async function ParkDetailsPage({
     }
   }
 
-  const chartData = Array.from(chartDataMap.entries()).map(([label, kwh]) => ({
-    label,
-    kwh: kwh !== null ? Math.round(kwh * 10) / 10 : null,
-  }))
+  const chartData = Array.from(chartDataMap.entries()).map(([label, kwh]) => {
+    const avg = avgByBar.get(label)
+    return {
+      label,
+      kwh: kwh !== null ? Math.round(kwh * 10) / 10 : null,
+      avgKwh: avg !== undefined ? Math.round(avg * 10) / 10 : undefined,
+    }
+  })
 
   return (
-    <div className="px-6 py-6 max-w-6xl mx-auto pb-12">
+    <div className="px-4 sm:px-6 py-4 sm:py-6 max-w-6xl mx-auto w-full pb-12 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div className="flex items-center gap-4">
@@ -231,39 +339,70 @@ export default async function ParkDetailsPage({
 
       {/* KPI Row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white rounded-xl border border-cream-200 p-5 shadow-sm">
-          <p className="text-xs font-semibold text-cream-500 uppercase tracking-wide">Produção ({kpiStringPrefix})</p>
-          <p className="text-2xl font-bold text-cream-900 mt-1">{fmtKwh(periodProd)}</p>
-          <p className="text-xs text-cream-400 mt-1">Acumulado do período selecionado</p>
-        </div>
-        <div className="bg-white rounded-xl border border-cream-200 p-5 shadow-sm">
-          <p className="text-xs font-semibold text-cream-500 uppercase tracking-wide">Capacidade Instalada</p>
-          <p className="text-2xl font-bold text-cream-900 mt-1">{plant.capacity_kwp} kWp</p>
-          <p className="text-xs text-cream-400 mt-1">Potência de pico do sistema</p>
-        </div>
-        <div className="bg-white rounded-xl border border-cream-200 p-5 shadow-sm">
-          <p className="text-xs font-semibold text-cream-500 uppercase tracking-wide">Vendas ({kpiStringPrefix})</p>
-          <p className="text-2xl font-bold text-cream-900 mt-1">{fmtCurrency(periodSales)}</p>
-          <p className="text-xs text-cream-400 mt-1">Estimativa c/ tarifa ({tariffPrice}€/kWh)</p>
-        </div>
+        {/* 1. Production current period + historical comparison */}
         <div className="bg-white rounded-xl border border-cream-200 p-5 shadow-sm flex flex-col justify-between">
           <div>
-            <p className="text-xs font-semibold text-cream-500 uppercase tracking-wide">Vendas do Mês Atual</p>
-            <p className="text-2xl font-bold text-cream-900 mt-1">{fmtCurrency(monthSales)}</p>
-          </div>
-          <div className="flex items-center mt-2">
-            {salesDiff >= 0 ? (
-              <span className="flex items-center text-xs font-medium text-forest-600 bg-forest-50 px-2 py-0.5 rounded-full">
-                <ArrowUpRight className="w-3 h-3 mr-1" />
-                {Math.abs(salesDiffPct).toFixed(1)}% vs Mês Ant.
-              </span>
-            ) : (
-              <span className="flex items-center text-xs font-medium text-red-600 bg-red-50 px-2 py-0.5 rounded-full">
-                <ArrowDownRight className="w-3 h-3 mr-1" />
-                {Math.abs(salesDiffPct).toFixed(1)}% vs Mês Ant.
-              </span>
+            <p className="text-xs font-semibold text-cream-500 uppercase tracking-wide">Produção ({kpiStringPrefix})</p>
+            <p className="text-2xl font-bold text-cream-900 mt-1">{fmtKwh(periodProd)}</p>
+            {comparisonProd !== null && (
+              <p className="text-xs text-cream-400 mt-1">{comparisonLabel}: {fmtKwh(comparisonProd)}</p>
             )}
           </div>
+          {prodDiffPct !== null && (
+            <div className="flex items-center mt-2">
+              {prodDiffPct >= 0 ? (
+                <span className="flex items-center text-xs font-medium text-forest-600 bg-forest-50 px-2 py-0.5 rounded-full">
+                  <ArrowUpRight className="w-3 h-3 mr-1" />
+                  {fmtNum(Math.abs(prodDiffPct), 1)}% vs méd.
+                </span>
+              ) : (
+                <span className="flex items-center text-xs font-medium text-red-600 bg-red-50 px-2 py-0.5 rounded-full">
+                  <ArrowDownRight className="w-3 h-3 mr-1" />
+                  {fmtNum(Math.abs(prodDiffPct), 1)}% vs méd.
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* 2. Estimated sales current period + historical comparison */}
+        <div className="bg-white rounded-xl border border-cream-200 p-5 shadow-sm flex flex-col justify-between">
+          <div>
+            <p className="text-xs font-semibold text-cream-500 uppercase tracking-wide">Vendas Estimadas ({kpiStringPrefix})</p>
+            <p className="text-2xl font-bold text-cream-900 mt-1">{fmtCurrency(periodSales)}</p>
+            {comparisonSales !== null && (
+              <p className="text-xs text-cream-400 mt-1">{comparisonLabel}: {fmtCurrency(comparisonSales)}</p>
+            )}
+          </div>
+          {salesDiffPct !== null && (
+            <div className="flex items-center mt-2">
+              {salesDiffPct >= 0 ? (
+                <span className="flex items-center text-xs font-medium text-forest-600 bg-forest-50 px-2 py-0.5 rounded-full">
+                  <ArrowUpRight className="w-3 h-3 mr-1" />
+                  {fmtNum(Math.abs(salesDiffPct), 1)}% vs méd.
+                </span>
+              ) : (
+                <span className="flex items-center text-xs font-medium text-red-600 bg-red-50 px-2 py-0.5 rounded-full">
+                  <ArrowDownRight className="w-3 h-3 mr-1" />
+                  {fmtNum(Math.abs(salesDiffPct), 1)}% vs méd.
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* 3. Installed capacity */}
+        <div className="bg-white rounded-xl border border-cream-200 p-5 shadow-sm">
+          <p className="text-xs font-semibold text-cream-500 uppercase tracking-wide">Capacidade Instalada</p>
+          <p className="text-2xl font-bold text-cream-900 mt-1">{fmtNum(plant.capacity_kwp, 1)} kWp</p>
+          <p className="text-xs text-cream-400 mt-1">Potência de pico do sistema</p>
+        </div>
+
+        {/* 4. All-time invoiced totals */}
+        <div className="bg-white rounded-xl border border-cream-200 p-5 shadow-sm">
+          <p className="text-xs font-semibold text-cream-500 uppercase tracking-wide">Total Faturado</p>
+          <p className="text-2xl font-bold text-forest-700 mt-1">{fmtCurrency(allInvEur)}</p>
+          <p className="text-xs text-cream-500 mt-1">{fmtKwh(allInvKwh)} faturados</p>
         </div>
       </div>
 
@@ -285,6 +424,7 @@ export default async function ParkDetailsPage({
         </div>
         
         <ProductionChart data={chartData} labelFormatterPrefix={labelPrefix} chartType={mode === 'day' ? 'line' : 'bar'} />
+
       </div>
 
       {/* Características Técnicas (Table 2) */}
@@ -304,11 +444,11 @@ export default async function ParkDetailsPage({
           </div>
           <div>
             <p className="text-xs text-cream-500 uppercase tracking-wide font-medium">Preço (Tarifa)</p>
-            <p className="text-base text-cream-900 font-medium mt-1">{details.tariff_price_kwh || 0.05} € / kWh</p>
+            <p className="text-base text-cream-900 font-medium mt-1">{fmtNum(details.tariff_price_kwh || 0.05, 3)} € / kWh</p>
           </div>
           <div>
             <p className="text-xs text-cream-500 uppercase tracking-wide font-medium">Capacidade Instalada</p>
-            <p className="text-base text-cream-900 font-medium mt-1">{plant.capacity_kwp} kWp</p>
+            <p className="text-base text-cream-900 font-medium mt-1">{fmtNum(plant.capacity_kwp, 1)} kWp</p>
           </div>
           <div>
             <p className="text-xs text-cream-500 uppercase tracking-wide font-medium">Data Instalação</p>
@@ -389,10 +529,10 @@ export default async function ParkDetailsPage({
                         {new Date(inv.period_start).toLocaleDateString('pt-PT')} – {new Date(inv.period_end).toLocaleDateString('pt-PT')}
                       </td>
                       <td className="py-3 px-4 text-right font-medium text-forest-700 bg-forest-50/30">
-                        {inv.kwh_value.toFixed(1)}
+                        {fmtNum(inv.kwh_value, 1)}
                       </td>
                       <td className="py-3 px-4 text-right font-medium text-cream-700 bg-cream-50/30">
-                        {inv.readKwh.toFixed(1)}
+                        {fmtNum(inv.readKwh, 1)}
                       </td>
                       <td className="py-3 px-4 text-right font-medium text-forest-700">
                         {fmtCurrency(inv.total_amount)}
